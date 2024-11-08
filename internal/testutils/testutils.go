@@ -31,10 +31,6 @@ func (f *FakeHandler) SendEvent(ev *socketmode.Event, c *socketmode.Client) {
 	}
 }
 
-func (f *FakeHandler) Login() {
-	f.eventHandlers[socketmode.EventTypeConnected](nil, nil)
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var _ http.RoundTripper = &StubbedRoundTripper{}
