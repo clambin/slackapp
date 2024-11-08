@@ -10,48 +10,53 @@ import (
 	"sync/atomic"
 )
 
+// A SlackApp implements Slack's Events API, using Socket Mode. It connects to Slack,  listens for incoming events
+// and makes them available using the Event channel.
 type SlackApp struct {
 	*socketmode.Client
 	Events chan slackevents.EventsAPIInnerEvent
-	SocketModeHandler
+	socketModeHandler
 	logger    *slog.Logger
 	connected atomic.Bool
 }
 
-type SocketModeHandler interface {
+type socketModeHandler interface {
 	RunEventLoopContext(ctx context.Context) error
 	Handle(socketmode.EventType, socketmode.SocketmodeHandlerFunc)
 }
 
+// NewSlackApp creates a new slackapp for the slack client.
 func NewSlackApp(client *slack.Client, logger *slog.Logger) *SlackApp {
 	smc := socketmode.New(client)
 	return newSlackAppWithSocketModeHandler(smc, socketmode.NewSocketmodeHandler(smc), logger)
 }
 
-func newSlackAppWithSocketModeHandler(client *socketmode.Client, handler SocketModeHandler, logger *slog.Logger) *SlackApp {
+func newSlackAppWithSocketModeHandler(client *socketmode.Client, handler socketModeHandler, logger *slog.Logger) *SlackApp {
 	app := SlackApp{
 		Client:            client,
 		Events:            make(chan slackevents.EventsAPIInnerEvent),
-		SocketModeHandler: handler,
+		socketModeHandler: handler,
 		logger:            logger,
 	}
-	app.SocketModeHandler.Handle(socketmode.EventTypeConnecting, app.onConnecting)
-	app.SocketModeHandler.Handle(socketmode.EventTypeConnectionError, app.onConnectionError)
-	app.SocketModeHandler.Handle(socketmode.EventTypeConnected, app.onConnected)
-	app.SocketModeHandler.Handle(socketmode.EventTypeIncomingError, app.onIncomingError)
-	app.SocketModeHandler.Handle(socketmode.EventTypeHello, app.onHello)
-	app.SocketModeHandler.Handle(socketmode.EventTypeDisconnect, app.onDisconnected)
-	app.SocketModeHandler.Handle(socketmode.EventTypeEventsAPI, app.onEvent)
+	app.socketModeHandler.Handle(socketmode.EventTypeConnecting, app.onConnecting)
+	app.socketModeHandler.Handle(socketmode.EventTypeConnectionError, app.onConnectionError)
+	app.socketModeHandler.Handle(socketmode.EventTypeConnected, app.onConnected)
+	app.socketModeHandler.Handle(socketmode.EventTypeIncomingError, app.onIncomingError)
+	app.socketModeHandler.Handle(socketmode.EventTypeHello, app.onHello)
+	app.socketModeHandler.Handle(socketmode.EventTypeDisconnect, app.onDisconnected)
+	app.socketModeHandler.Handle(socketmode.EventTypeEventsAPI, app.onEvent)
 
 	return &app
 }
 
+// Run starts the slackapp. It connects to Slack and passes any received events to the Events channel.
 func (h *SlackApp) Run(ctx context.Context) error {
 	h.logger.Info("starting SlackApp")
 	defer h.logger.Info("shutting down SlackApp")
-	return h.SocketModeHandler.RunEventLoopContext(ctx)
+	return h.socketModeHandler.RunEventLoopContext(ctx)
 }
 
+// Connected returns true if the slackapp is connected to Slack.
 func (h *SlackApp) Connected() bool {
 	return h.connected.Load()
 }

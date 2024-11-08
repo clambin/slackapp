@@ -23,7 +23,7 @@ func TestBot(t *testing.T) {
 	var h testutils.FakeHandler
 	b := newBotWith(api, &h,
 		WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
-		WithHandler("foo", HandlerFunc(func(ctx context.Context, s ...string) []slack.MsgOption {
+		WithCommand("foo", HandlerFunc(func(ctx context.Context, s ...string) []slack.MsgOption {
 			return []slack.MsgOption{slack.MsgOptionText("foo", false)}
 		})),
 	)
@@ -35,13 +35,13 @@ func TestBot(t *testing.T) {
 	// valid command
 	slackClient := slack.New("", slack.OptionHTTPClient(&http.Client{Transport: &testutils.StubbedRoundTripper{}}))
 	smClient := socketmode.New(slackClient)
-	go b.SlackApp.SocketModeHandler.(*testutils.FakeHandler).SendEvent(testutils.AppMentionEvent("<@W23456789> foo"), smClient)
+	go b.SlackApp.socketModeHandler.(*testutils.FakeHandler).SendEvent(testutils.AppMentionEvent("<@W23456789> foo"), smClient)
 
 	post := <-ts.post
 	assert.Equal(t, `foo`, post.Get("text"))
 
 	// invalid command
-	go b.SlackApp.SocketModeHandler.(*testutils.FakeHandler).SendEvent(testutils.AppMentionEvent("<@W23456789> bar"), smClient)
+	go b.SlackApp.socketModeHandler.(*testutils.FakeHandler).SendEvent(testutils.AppMentionEvent("<@W23456789> bar"), smClient)
 
 	post = <-ts.post
 	assert.Equal(t, `[{"color":"bad","title":"invalid command","text":"supported commands: foo","blocks":null}]`, post.Get("attachments"))

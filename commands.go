@@ -22,7 +22,7 @@ func (f HandlerFunc) Handle(ctx context.Context, args ...string) []slack.MsgOpti
 
 var _ Handler = Commands{}
 
-// Commands is a map of verb/Handler pairs.
+// Commands contains the registered commands and their handler.
 //
 // Note that Commands itself implements the Handler interface. This allows nested command structures to be built:
 //

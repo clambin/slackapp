@@ -12,19 +12,22 @@ import (
 	"strings"
 )
 
+// Bot is a SlackApp application that receives commands by mentioning the bot in a channel. The bot executes the commands
+// and posts the output in the channel where it was mentioned.
 type Bot struct {
 	*SlackApp
 	Commands
 	logger *slog.Logger
 }
 
+// NewBot creates a Bot for the Slack client.
 func NewBot(client *slack.Client, options ...BotOptionFunc) *Bot {
 	b := makeBot(options...)
 	b.SlackApp = NewSlackApp(client, b.logger.With("component", "slackapp"))
 	return b
 }
 
-func newBotWith(c *slack.Client, h SocketModeHandler, options ...BotOptionFunc) *Bot {
+func newBotWith(c *slack.Client, h socketModeHandler, options ...BotOptionFunc) *Bot {
 	b := makeBot(options...)
 	b.SlackApp = newSlackAppWithSocketModeHandler(socketmode.New(c), h, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return b
@@ -41,6 +44,8 @@ func makeBot(options ...BotOptionFunc) *Bot {
 	return &b
 }
 
+// Run starts the bot. It connects to Slack and waits for a command. It executes the command and posts the output in the channel
+// where the command was issued.
 func (b *Bot) Run(ctx context.Context) error {
 	botUserID, err := b.userID()
 	if err != nil {
@@ -95,21 +100,24 @@ func (b *Bot) userID() (string, error) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// BotOptionFunc configures a Bot when it's created.
 type BotOptionFunc func(*Bot)
 
+// WithLogger adds the provided logger to the Bot. The default is slog.Default().
 func WithLogger(logger *slog.Logger) BotOptionFunc {
 	return func(bot *Bot) {
 		bot.logger = logger
 	}
 }
 
-func WithHandler(verb string, handler Handler) BotOptionFunc {
+// WithCommand registers a command with the bot.
+func WithCommand(verb string, handler Handler) BotOptionFunc {
 	return func(bot *Bot) {
 		bot.Commands[verb] = handler
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////f////
 
 var tokenizerRegExp = regexp.MustCompile(`[^\s"]+|"([^"]*)"`)
 
