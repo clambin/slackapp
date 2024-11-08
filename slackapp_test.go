@@ -2,6 +2,7 @@ package slackapp
 
 import (
 	"context"
+	"errors"
 	"github.com/clambin/slackapp/internal/testutils"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -43,6 +44,7 @@ func TestSlackApp(t *testing.T) {
 	assert.Equal(t, "hello world", mention.Text)
 
 	// connection error / disconnect
+	app.onIncomingError(&socketmode.Event{Data: &slack.IncomingEventError{ErrorObj: errors.New("fail")}}, nil)
 	ev := socketmode.Event{
 		Type:    socketmode.EventTypeInvalidAuth,
 		Request: &socketmode.Request{Reason: "invalid credentials"},

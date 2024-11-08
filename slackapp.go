@@ -2,7 +2,7 @@ package slackapp
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
@@ -56,17 +56,14 @@ func (h *SlackApp) Connected() bool {
 	return h.connected.Load()
 }
 
-func (h *SlackApp) onHello(_ *socketmode.Event, _ *socketmode.Client) {
-}
-
 func (h *SlackApp) onConnecting(_ *socketmode.Event, _ *socketmode.Client) {
 	h.logger.Debug("connecting to Slack ...")
 }
 
-func (h *SlackApp) onConnectionError(evt *socketmode.Event, _ *socketmode.Client) {
-	reason := string(evt.Type)
-	if evt.Request != nil {
-		reason = evt.Request.Reason
+func (h *SlackApp) onConnectionError(ev *socketmode.Event, _ *socketmode.Client) {
+	reason := string(ev.Type)
+	if ev.Request != nil {
+		reason = ev.Request.Reason
 	}
 	h.logger.Error("failed to connect to Slack", "reason", reason)
 }
@@ -76,25 +73,32 @@ func (h *SlackApp) onConnected(_ *socketmode.Event, _ *socketmode.Client) {
 	h.logger.Info("connected to Slack")
 }
 
+func (h *SlackApp) onIncomingError(ev *socketmode.Event, _ *socketmode.Client) {
+	var err *slack.IncomingEventError
+	if errors.As(ev.Data.(error), &err) {
+		h.logger.Warn("received incoming error", "err", err)
+	} else {
+		h.logger.Warn("received unexpected event type", "type", ev.Type)
+	}
+}
+
+func (h *SlackApp) onHello(_ *socketmode.Event, _ *socketmode.Client) {
+}
+
 func (h *SlackApp) onDisconnected(_ *socketmode.Event, _ *socketmode.Client) {
 	h.connected.Store(false)
 	h.logger.Warn("disconnected from Slack")
 }
 
-func (h *SlackApp) onEvent(evt *socketmode.Event, client *socketmode.Client) {
-	eventsAPIEvent, ok := evt.Data.(slackevents.EventsAPIEvent)
+func (h *SlackApp) onEvent(ev *socketmode.Event, client *socketmode.Client) {
+	eventsAPIEvent, ok := ev.Data.(slackevents.EventsAPIEvent)
 	if !ok {
-		h.logger.Warn("received unexpected event type", "type", evt.Type)
+		h.logger.Warn("received unexpected event type", "type", ev.Type)
 		return
 	}
-	client.Ack(*evt.Request)
+	client.Ack(*ev.Request)
 	innerEvent := eventsAPIEvent.InnerEvent
 	h.logger.Debug("Event received", "type", innerEvent.Type)
 
 	h.Events <- innerEvent
-}
-
-func (h *SlackApp) onIncomingError(event *socketmode.Event, _ *socketmode.Client) {
-	// TODO
-	h.logger.Warn("received unexpected event", "type", event.Type, "type", fmt.Sprintf("%T", event.Data))
 }
